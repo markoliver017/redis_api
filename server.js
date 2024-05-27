@@ -1,75 +1,34 @@
 require('dotenv').config();
-const {ENVIRONMENT, SESSION_SECRET, PORT, API_KEY, SERVER_HOST } = process.env; 
+const { PORT, SERVER_HOST } = process.env; 
 
 const express = require("express");
-const session = require('express-session');
 const axios = require("axios");
-const cors = require("cors");
-const RedisStore = require('connect-redis').default;
-const Redis = require("redis");
 
-const redisClient = Redis.createClient({
-    url: 'redis://192.168.145.75:6379',
-});
-
-(async () => {
-    await redisClient.connect();
-})();
-redisClient.on('connect', () => console.log('Redis Client Connected') );
-redisClient.on('error', (err) => console.log('Redis Client Connection Error', err));
+const { corsMiddleware, apiKeyMiddleware } = require('./middleware/cors')
+const { sessionMiddleware, redisClient  } = require('./middleware/redis');
 
 const app = express();
 
+/***** start middlewares config using app.use()  *****/
 app.use(express.json());
+//body parser for form data
+app.use(express.urlencoded({ extended: true }));
 
-// Define allowed origins
-const allowedOrigins = ['http://localhost'];
+// serving static contents - express function 
+app.use(express.static(__dirname + "/static"));
 
-const corsOptions = {
-    origin: function (origin, callback) {
+// This sets the location where express will look for the ejs views
+app.set('views', __dirname + '/views'); 
+// Now lets set the view engine itself so that express knows that we are using ejs as opposed to another templating engine like jade
+app.set('view engine', 'ejs');
 
-        if (!origin && ENVIRONMENT === 'development') return callback(null, true);
-
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify allowed HTTP methods
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'], // Specify allowed headers
-    credentials: true, // Allow cookies to be sent
-    optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
-};
-
-const apiKeyMiddleware = (req, res, next) => {
-    
-    const apiKey = req.headers['x-api-key'];
-    const requestHost = req.get('host');
-    // if (requestHost === `${SERVER_HOST}:${PORT}` && ENVIRONMENT == 'development') {
-    //     return next();
-    // }
-    if (apiKey !== API_KEY) {
-        const msg = 'Forbidden: Invalid API key';
-        console.log(msg + ' ' + apiKey)
-        return res.status(403).json({ error: msg });
-    }
-    next();
-};
-
-app.use(cors(corsOptions));
+app.use(corsMiddleware);
 app.use(apiKeyMiddleware);
+app.use(sessionMiddleware);
 
-app.use(session({
-    store: new RedisStore({ client: redisClient }),
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: false, httpOnly: true, maxAge: 120000 } 
-}));
-
-// Middleware to refresh session TTL
-app.use((req, res, next) => {
+// Middleware to refresh session in REDIS TTL
+app.use('/api/session',(req, res, next) => {
+    console.log('im on api route')
     if (req.session) {
         req.session.save(err => {
             if (err) {
@@ -82,60 +41,64 @@ app.use((req, res, next) => {
     }
 });
 
-app.get('/example-endpoint', (req, res) => {
+/************  end of middlewares ****************/
+
+
+app.get('/api/session/example-endpoint', (req, res) => {
     res.json({ message: 'This is a CORS-enabled endpoint.' });
 });
 
-app.get('/set-session', (req, res) => {
-    req.session.user = { id: 1, username: 'exampleUser' };
-    res.send('Session data has been set.');
-});
+// app.get('/set-session', (req, res) => {
+//     req.session.user = { id: 1, username: 'exampleUser' };
+//     res.send('Session data has been set.');
+// });
 
 
-app.get("/photos", async (req,res) => {
-    const albumId = req.query.albumId;
-    const { data } = await axios.get(
-        "https://jsonplaceholder.typicode.com/photos",
-        { params: { albumId } }
-    );
+// app.get("/photos", async (req,res) => {
+//     const albumId = req.query.albumId;
+//     const { data } = await axios.get(
+//         "https://jsonplaceholder.typicode.com/photos",
+//         { params: { albumId } }
+//     );
 
-    res.json(data);
+//     res.json(data);
 
-});
+// });
 
-app.get('/get-session', (req, res) => {
-    if (req.session.user) {
-        res.send(`Session data: ${JSON.stringify(req.session.user)}`);
-    } else {
-        res.send('No session data found.');
-    }
-});
+// app.get('/get-session', (req, res) => {
+//     if (req.session.user) {
+//         res.send(`Session data: ${JSON.stringify(req.session.user)}`);
+//     } else {
+//         res.send('No session data found.');
+//     }
+// });
 
-app.get("/photos/:id", async (req, res) => {
+// app.get("/photos/:id", async (req, res) => {
     
-    const { data } = await axios.get(
-        `https://jsonplaceholder.typicode.com/photos/${req.params.id}`
-    );
-    redisClient.setEx("photos", 3600, JSON.stringify(data));
+//     const { data } = await axios.get(
+//         `https://jsonplaceholder.typicode.com/photos/${req.params.id}`
+//     );
+//     redisClient.setEx("photos", 3600, JSON.stringify(data));
 
-    res.json(data);
-});
+//     res.json(data);
+// });
+
+app.get("/users/:id/:x", function (request, response){
+    // hard-coded user data
+    console.log(request.params);
+    // const users_array = [
+    //     {name: "Michael", email: "michael@codingdojo.com"}, 
+    //     {name: "Jay", email: "jay@codingdojo.com"}, 
+    //     {name: "Brendan", email: "brendan@codingdojo.com"}, 
+    //     {name: "Andrew", email: "andrew@codingdojo.com"}
+    // ];
+    // response.render('users', {users: users_array});
+})
 
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(`${SERVER_HOST}:${PORT}/`);
 });
 
-//example logging of redis keys
-(async () => {
-    try {
-        const value = await redisClient.get('photos');
-        console.log(value);
-
-        console.log(await redisClient.ttl('photos'));
-        
-    } catch (err) {
-        console.error('Error:', err);
-    }
-})();
 

@@ -1,0 +1,33 @@
+# NODE URL
+// const url = require('node:url');
+
+// const myURL = new URL('https://example.com:8080/path/name?query=string#hash');
+
+// console.log(myURL.href);      // 'https://example.com:8080/path/name?query=string#hash'
+// console.log(myURL.protocol);  // 'https:'
+// console.log(myURL.host);      // 'example.com:8080'
+// console.log(myURL.hostname);  // 'example.com'
+// console.log(myURL.port);      // '8080'
+// console.log(myURL.pathname);  // '/path/name'
+// console.log(myURL.search);    // '?query=string'
+// console.log(myURL.hash);      // '#hash'
+
+# Formatting URLs
+// const url = require('node:url');
+
+// const myURL = new URL('https://example.com');
+// myURL.pathname = '/path/name';
+// myURL.search = '?query=string';
+
+// console.log(myURL.toString());  // 'https://example.com/path/name?query=string'
+
+Properties of the URL object: Once you have a URL object, you can access various properties:
+
+    href: The full URL string.
+    protocol: The protocol scheme of the URL (e.g., 'http:', 'https:').
+    host: The full host portion of the URL (e.g., 'example.com:8080').
+    hostname: The domain name (e.g., 'example.com').
+    port: The port number (e.g., '8080').
+    pathname: The path section of the URL (e.g., '/path/name').
+    search: The query string, including the leading '?' (e.g., '?query=string').
+    hash: The fragment identifier, including the leading '#' (e.g., '#hash').
