@@ -1,10 +1,25 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+</head>
 <body>
-    <h2>Here are all the users:</h2>
-    <% for (const x in users) { %>
-        <h3>Name: <%= users[x].name %></h3>
-        <h4>Email: <%= users[x].email %></h4>
-        <hr>
-    <% } %>
+    <div class="container text-center w-50">
+
+        <h1>Here are all the users:</h1>
+        <% for (const x in users) { %>
+            <ul class="list-group">
+                <li class="list-group-item">Name: <%= users[x].fullname %></li>
+                <li class="list-group-item">Employee ID: <%= users[x].employee_id %></li>
+                <li class="list-group-item">Email: <%= users[x].email %></li>
+            </ul>
+            <hr>
+        <% } %>
+
+    </div>
+
 </body>
 </html>

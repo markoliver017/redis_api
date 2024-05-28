@@ -2,9 +2,10 @@ require('dotenv').config();
 const { PORT, SERVER_HOST } = process.env; 
 
 const express = require("express");
+const connection = require('./database/connection');
 const axios = require("axios");
 
-const { corsMiddleware, apiKeyMiddleware } = require('./middleware/cors')
+const corsMiddleware = require('./middleware/cors')
 const { sessionMiddleware, redisClient  } = require('./middleware/redis');
 
 const app = express();
@@ -23,35 +24,47 @@ app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
 app.use(corsMiddleware);
-app.use(apiKeyMiddleware);
 app.use(sessionMiddleware);
 
 // Middleware to refresh session in REDIS TTL
-app.use('/api/session',(req, res, next) => {
-    console.log('im on api route')
-    if (req.session) {
-        req.session.save(err => {
-            if (err) {
-                console.error('Session save error:', err);
-            }
-            next();
-        });
-    } else {
-        next();
+app.use(async (req, res, next) => {
+
+    console.log(req.session.session_id);
+    console.log(req.session);
+    console.log(await redisClient.get('sess:'+req.session.session_id))
+    console.log(await redisClient.keys('*'))
+    if(req.session){
+        req.session.touch();
+        // req.session.save(err => {
+        //     if (err) {
+        //         console.error('Session save error:', err);
+        //     }
+        // });
     }
+    next();
+    
 });
 
 /************  end of middlewares ****************/
 
+app.get('/login', (req, res) => {
+    req.session.session_id = req.session.id;
+    res.render('index');
+});
 
-app.get('/api/session/example-endpoint', (req, res) => {
+app.get('/sample', (req, res) => {
+    console.log(req.session);
+    res.send("sample view")
+});
+
+app.get('/api/session/example-endpoint', async (req, res) => {
+    console.log(await redisClient.keys('*'))
     res.json({ message: 'This is a CORS-enabled endpoint.' });
 });
 
-// app.get('/set-session', (req, res) => {
-//     req.session.user = { id: 1, username: 'exampleUser' };
-//     res.send('Session data has been set.');
-// });
+app.get('/api/get-session/:sess', (req, res) => {
+    return redisClient.get(req.params.sess);
+});
 
 
 // app.get("/photos", async (req,res) => {
@@ -83,16 +96,39 @@ app.get('/api/session/example-endpoint', (req, res) => {
 //     res.json(data);
 // });
 
-app.get("/users/:id/:x", function (request, response){
-    // hard-coded user data
-    console.log(request.params);
-    // const users_array = [
-    //     {name: "Michael", email: "michael@codingdojo.com"}, 
-    //     {name: "Jay", email: "jay@codingdojo.com"}, 
-    //     {name: "Brendan", email: "brendan@codingdojo.com"}, 
-    //     {name: "Andrew", email: "andrew@codingdojo.com"}
-    // ];
-    // response.render('users', {users: users_array});
+app.get("/users", async (req, res) => {
+    try {
+        const limit = 10;
+        const offset = 0;
+
+        const [row] = await connection.query(
+                            `SELECT *, CONCAT(user_lname, ', ', user_fname, ' ', COALESCE(user_mname, '') ) as fullname
+                            from af_userinfo
+                            LIMIT ?, ?
+                            `,
+                            [offset, limit]
+                        );
+        
+        // res.render('users', {users: row});
+        res.json(row);
+
+    }catch(err){
+        res.status(500).send(err.toString());
+    }
+})
+
+app.get("/users/:id", async (req, res) => {
+    const employee_no = req.params.id;
+
+    const [row] = await connection.query(
+        `SELECT *, CONCAT(user_lname,', ',user_fname, ' ',COALESCE(user_mname, '') ) as fullname
+        FROM af_userinfo
+        WHERE employee_id = ?
+        `,
+        [employee_no]
+    );
+    res.render('users', {users: row});
+    // res.json(row);
 })
 
 
