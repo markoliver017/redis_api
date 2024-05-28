@@ -1,32 +1,22 @@
 require('dotenv').config();
 
-const {ENVIRONMENT, PORT, API_KEY, SERVER_HOST } = process.env; 
+const { ENVIRONMENT, PORT, API_KEY, SERVER_HOST } = process.env;
 
-const cors = require("cors");
+const cors = require('cors');
+
 // Define allowed origins
 const allowedOrigins = ['http://localhost'];
 
 const corsOptions = {
     origin: function (origin, callback) {
-
-        if (!origin) return callback(null, true);
+        if (!origin) return callback(null, true); // Allow requests with no origin (e.g., mobile apps, curl requests)
 
         if (allowedOrigins.indexOf(origin) === -1) {
             const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
             return callback(new Error(msg), false);
-
-        }else{
-            const apiKey = req.headers['x-api-key'];
-            const requestHost = req.get('host');
-            if (requestHost === `${SERVER_HOST}:${PORT}`) {
-                return next();
-            }
-            if (apiKey !== API_KEY) {
-                const msg = 'Forbidden: Invalid API key';
-                return res.status(403).json({ error: msg });
-            }
-            return callback(null, true);
         }
+
+        return callback(null, true); // Allow origin if it matches
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify allowed HTTP methods
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'], // Specify allowed headers
@@ -34,20 +24,25 @@ const corsOptions = {
     optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
-corsMiddleware = cors(corsOptions);
+const corsMiddleware = cors(corsOptions);
 
-// const apiKeyMiddleware = (req, res, next) => {
+// Middleware to check API key and host
+const checkApiKeyAndHost = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    const requestHost = req.get('host');
+
+    if (requestHost !== `${SERVER_HOST}:${PORT}`) {
+        return res.status(403).json({ error: 'Forbidden: Invalid host' });
+    }
     
-//     const apiKey = req.headers['x-api-key'];
-//     const requestHost = req.get('host');
-//     if (requestHost === `${SERVER_HOST}:${PORT}` && ENVIRONMENT == 'development') {
-//         return next();
-//     }
-//     if (apiKey !== API_KEY) {
-//         const msg = 'Forbidden: Invalid API key';
-//         return res.status(403).json({ error: msg });
-//     }
-//     next();
-// };
+    if (apiKey !== API_KEY) {
+        return res.status(403).json({ error: 'Forbidden: Invalid API key' });
+    }
+    
+    next();
+};
 
-module.exports = corsMiddleware;
+module.exports = {
+    corsMiddleware,
+    checkApiKeyAndHost
+};
