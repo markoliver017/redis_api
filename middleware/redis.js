@@ -32,6 +32,7 @@ sessionMiddleware = session({
     store: new RedisStore({ client: redisClient }),
     secret: SESSION_SECRET || 'default_secret',
     resave: false,
+    rolling: true, // This ensures the expiration is refreshed on every request
     saveUninitialized: false,
     cookie: { secure: false, httpOnly: true, maxAge: 120000 } 
 });
